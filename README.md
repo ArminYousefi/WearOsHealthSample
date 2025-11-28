@@ -1,6 +1,25 @@
 # ⌚ Wear Health Monitor
 
-A sample Wear OS app that monitors heart rate, exercise metrics, steps, floors, calories, and sleep stages using Health Services and Health Connect, built with Jetpack Compose and Hilt.
+A sample **multi‑module** project for Wear OS + Android phone that shows how to:
+
+- Track heart rate, exercise metrics, steps, floors, calories with **Health Services** on Wear OS.
+- Read nightly **sleep sessions and stages** from **Health Connect** on the phone.
+- Share domain models and clean architecture between watch and phone.
+
+Built with **Kotlin, Jetpack Compose, Hilt, Coroutines, and MVVM**.
+
+---
+
+## 🧩 Modules
+
+- `:app` – Wear OS app  
+  Live exercise metrics, heart rate, and a simple dashboard for the watch.
+
+- `:phone` – Android phone app  
+  - Connects to **Health Connect** to read `SleepSessionRecord`s. 
+  - Shows a nightly sleep timeline (duration + stages).  
+  - Handles Health Connect permissions with the official Activity Result contract.
+  - Includes a **debug “Insert fake sleep”** button to seed data on an emulator.
 
 ---
 
@@ -9,29 +28,36 @@ A sample Wear OS app that monitors heart rate, exercise metrics, steps, floors, 
 ### Tech Stack
 
 - Kotlin
-- Jetpack Compose for Wear OS
+- Jetpack Compose (Wear OS + Phone)
 - Hilt (Dependency Injection)
-- Health Services (Exercise & Passive Monitoring)
-- Health Connect (Sleep sessions)
-- Coroutines & Flow / StateFlow
-- MVVM (ViewModel + Repository + UseCase)
+- Health Services (exercise & passive metrics)
+- Health Connect (sleep sessions & stages) 
+- Coroutines / Flow / StateFlow
+- MVVM + Use Cases
 
 ### High‑Level Architecture
 
 - **data**
-  - Repositories (`ExerciseRepository`, `SleepRepository`, `UserActivityRepository`)
-  - Data models (`ExerciseMetrics`, `SleepSummary`)
-  - Direct integration with Health Services & Health Connect
+  - Repositories (`ExerciseRepository`, `SleepRepository`, `UserActivityRepository`, …)
+  - Health Services integrations (Wear)
+  - Health Connect integration (Phone)
 - **domain**
-  - Use cases like `GetHealthDataUseCase` to orchestrate repositories
+  - Use cases like:
+    - `GetHealthDataUseCase` (Wear dashboard)
+    - `GetSleepSessionsUseCase` (Phone sleep timeline)
 - **presentation**
-  - `HealthViewModel`
-  - `HealthUiState`
-  - Composables such as `HealthDashboardScreen`, `SleepStagesRing`, `FullTrackCircularProgress`
+  - Wear:
+    - `HealthViewModel`, `HealthUiState`
+    - Composables: `HealthDashboardScreen`, `SleepStagesRing`, `FullTrackCircularProgress`
+  - Phone:
+    - `SleepViewModel`, `SleepUiState`
+    - Composables: `SleepScreen`, `SleepSessionCard`, per‑stage rows
 - **di**
-  - Hilt module(s) such as `AppModule` to wire up repositories and use cases
+  - Hilt modules wiring:
+    - Health Services / repositories (Wear)
+    - `HealthConnectClient`, `SleepRepository`, `HealthConnectPermissionManager` (Phone)
 
-This separation keeps platform APIs, business rules, and UI concerns isolated, which makes refactoring and testing much easier.
+This keeps platform APIs (Health Services / Health Connect), domain logic, and UI concerns clearly separated and easy to test.
 
 ---
 
@@ -46,128 +72,165 @@ text
 
 ### 2. Open in Android Studio
 
-- Open Android Studio.
-- `File` > `Open...` and select the project root.
-- Let Gradle sync finish.
+1. Open Android Studio.
+2. `File > Open…` and select the project root.
+3. Wait for Gradle sync to finish.
 
-### 3. Run on a Wear OS device/emulator
+### 3. Run the Wear OS app (`:app`)
 
-- Select a **Wear OS** run configuration or create one for your device/emulator.
-- Click **Run**.
-- On the watch, grant permissions when prompted:
-  - Activity recognition
-  - Heart rate / body sensors
-  - Health Connect permissions (if the Health Connect sheet is shown)
+1. Create or select a **Wear OS** emulator / device.
+2. Choose the `:app` run configuration.
+3. Click **Run**.
+4. On the watch, grant runtime permissions when prompted:
+   - Activity recognition
+   - Body sensors / heart rate
+
+### 4. Run the Phone app (`:phone`) with Health Connect
+
+1. Use a **Google Play** phone emulator (or real device) with **Health Connect** installed/enabled.
+2. Choose the `:phone` run configuration and click **Run**.
+3. On first launch:
+   - The app checks `HealthConnectClient.getSdkStatus` and shows a message if HC is unavailable.
+   - Tap **Grant Health Connect permission** to open the official permission sheet.
+4. After granting **Sleep** permissions, the phone app:
+   - Reads sleep sessions from Health Connect for the last 3 days.
+   - Renders each night as a card (date, duration, per‑stage breakdown).
+
+### 5. Debug: insert fake sleep data (for emulator only)
+
+Because emulators rarely have real sleep data, the phone app exposes a debug button:
+
+- Tap **Insert fake sleep** to write a synthetic `SleepSessionRecord` for last night (Light + Deep stages).
+- The app then reloads and shows:
+  - Session date
+  - Start/end time
+  - Total hours
+  - Stage list with time ranges
+
+On a real phone with a sleep‑tracking app connected to Health Connect (e.g. Samsung Health), you can disable or hide this debug button and display only real data.
 
 ---
 
 ## 📊 Features
 
-- Live heart rate display with a simple heart icon header.
-- Current sleep state label (e.g. Asleep / Awake / Exercise).
-- Exercise toggle (start/stop synthetic run) with live updates for:
-  - Steps and steps per minute
+### Wear OS app (`:app`)
+
+- Live heart rate with a simple header.
+- Exercise toggle (start/stop synthetic run) with live metrics:
+  - Steps & cadence (steps/min)
   - Distance (km)
   - Speed & pace
-  - Floors climbed
-  - Calories and active time
-- Sleep section (when data is available via Health Connect):
-  - Total sleep duration
-  - Sleep stages ring (`Deep / Light / REM / Awake`)
-  - Color legend for each sleep stage
-- Calories ring using a full‑track circular progress indicator.
-- Centralized theme and color palette for consistent styling across the app.
+  - Floors climbed / elevation
+  - Calories & active time
+- Sleep state label (e.g., Asleep / Awake / Exercising) using Health Services.
+- Sleep stages ring:
+  - Visual breakdown of Deep / Light / REM / Awake
+  - Color legend composable
+- Calories ring with full‑track circular progress.
+- Compose‑based, theme‑aware UI tuned for round watch displays.
+
+### Phone app (`:phone`)
+
+- Health Connect integration:
+  - Reads `SleepSessionRecord` + per‑stage `Stage` list via `readRecords`. 
+  - Uses a dedicated permission manager for status + grants.
+- Sleep timeline UI:
+  - One card per night:
+    - Date (e.g., `Fri, Nov 28`)
+    - Time range (e.g., `18:30 – 02:30`)
+    - Total duration (e.g., `8.0 h`)
+    - Per‑stage summary (Deep/Light/REM durations)
+    - Detailed stage rows (e.g., `Light: 18:30 – 21:30`)
+- Debug “Insert fake sleep” button:
+  - Writes a synthetic sleep session via `insertRecords`.
+  - Useful for emulator demos and screenshots.
 
 ---
 
 ## ✅ Project Best Practices
 
 - **Layered architecture**
-  - Keep repositories in `data`, use cases in `domain`, and UI/ViewModel code in `presentation` to avoid tight coupling.
+  - Repositories in `data`, use cases in `domain`, ViewModels + Composables in `presentation`.
 - **Immutable UI state**
-  - Use immutable data classes (e.g. `HealthUiState`) and expose them as `StateFlow` in ViewModels for predictable rendering.
-- **Theming & colors**
-  - Define all colors in the theme module (no inline hex colors in composables) so visual changes are easy and consistent.
+  - State classes exposed as `StateFlow` (e.g., `HealthUiState`, `SleepUiState`) for predictable recomposition.
+- **Centralized theming**
+  - Colors, typography, and shapes defined once; no magic hex values inside composables.
 - **Dependency injection**
-  - Use Hilt with `@HiltViewModel`, constructor injection, and modules in `di` so classes are easy to test and reuse.
-- **Permissions handling**
-  - Centralize permission logic in a dedicated class (`HealthPermissionManager`) instead of scattering it across Activities or ViewModels.
-- **Logging & diagnostics**
-  - Log key events (permission results, Health Services/Health Connect status, exercise start/stop) to aid debugging on real devices.
-- **GitHub hygiene**
-  - Use a proper Android `.gitignore`.
-  - Avoid committing secrets (API keys, tokens).
-  - Use clear commit messages and meaningful branches/PRs for new features.
+  - Hilt with constructor injection and modules per module (`:app`, `:phone`) for easy testing and reuse.
+- **Permission handling**
+  - Health Connect permission flow encapsulated in `HealthConnectPermissionManager` and used via Activity Result contracts. 
+- **Debug tooling**
+  - Optional fake data insertion for Health Connect, guarded so it can be disabled in production builds.
 
 ---
 
 ## 🧭 Roadmap / Ideas
 
-- Add more exercise types (e.g. Walking, Hiking, Cycling) and let the user choose.
-- Persist history of exercises and sleep summaries locally.
-- Add charts for daily/weekly trends.
-- Improve accessibility (font sizes, contrast, TalkBack support).
+- Sync sleep summaries from Wear OS to the phone and write them to Health Connect.
+- Add charts for weekly/monthly sleep & activity trends.
+- Persist local history (Room / DataStore) for offline browsing.
+- Add export / share of sleep reports.
+- Improve accessibility (TalkBack, larger fonts, color‑blind friendly palette).
 
 ---
 
-## 🇮🇷 فارسی
+## 🇮🇷 نسخهٔ فارسی
 
-<!-- استفاده از HTML برای RTL و راست‌چین شدن در گیت‌هاب -->
-<h2 dir="rtl" align="right">معرفی</h2>
+<h2 dir="rtl" align="right">معرفی پروژه</h2>
 
 <div dir="rtl" align="right">
 
 <p>
-اپلیکیشن <b>Wear Health Monitor</b> یک نمونهٔ آموزشی برای <b>Wear OS</b> است که نشان می‌دهد چطور می‌توان:
+اپلیکیشن <b>Wear Health Monitor</b> یک نمونهٔ چند ماژوله برای <b>Wear OS</b> و گوشی اندرویدی است که نشان می‌دهد چطور می‌توان:
 </p>
 
 <ul>
-  <li>متریک‌های زندهٔ تمرین (ضربان قلب، مسافت، سرعت، کالری، طبقات و ارتفاع) را از <b>Health Services</b> دریافت کرد.</li>
-  <li>داده‌های خواب شب گذشته و مراحل خواب (عمیق، سبک، <b>REM</b>، بیدار) را از <b>Health Connect</b> خواند.</li>
-  <li>مدیریت مجوزهای <b>runtime</b> و <b>Health Connect</b> را در یک کلاس متمرکز انجام داد.</li>
-  <li>یک داشبورد سلامت با <b>Jetpack Compose</b> روی صفحهٔ گرد ساعت پیاده‌سازی کرد.</li>
-  <li>از معماری <b>MVVM</b> همراه با <b>Hilt</b>، <b>coroutines</b> و <b>Flow</b> برای UI واکنش‌گرا استفاده کرد.</li>
+  <li>متریک‌های تمرین (ضربان قلب، گام‌ها، مسافت، سرعت، کالری و ...) را روی ساعت با <b>Health Services</b> دریافت و نمایش داد.</li>
+  <li>داده‌های خواب (سشن‌های خواب و مراحل خواب) را روی گوشی از <b>Health Connect</b> خواند و به صورت <b>تایم‌لاین</b> و کارت‌های شبانه نمایش داد. </li>
+  <li>جریان مجوزهای Health Connect (وضعیت SDK، گرفتن مجوز، بررسی مجدد) را در یک کلاس متمرکز مدیریت کرد.</li>
+  <li>از معماری تمیز (data / domain / presentation) با <b>MVVM</b>، <b>Hilt</b> و <b>Jetpack Compose</b> برای هر دو ماژول ساعت و گوشی استفاده کرد.</li>
 </ul>
 
-<h3>امکانات</h3>
+<h3>ماژول‌ها</h3>
 
 <ul>
-  <li>نمایش لحظه‌ای ضربان قلب و وضعیت فعلی خواب/بیداری کاربر.</li>
-  <li>سوئیچ شروع/پایان تمرین با داده‌های زنده (گام‌ها، مسافت، سرعت، کالری و ...).</li>
-  <li>حلقهٔ مراحل خواب (Deep / Light / REM / Awake) به همراه Legend رنگی.</li>
-  <li>نمایش گام‌ها، مسافت (کیلومتر)، <b>pace</b> و تعداد طبقات طی‌شده.</li>
-  <li>حلقهٔ کالری با <b>Circular Progress</b> برای نمایش درصد رسیدن به هدف کالری.</li>
-  <li>تم و پالت رنگ متمرکز برای یک‌دست بودن ظاهر رابط کاربری.</li>
+  <li><b>:app</b> – اپ Wear OS<br/>
+    داشبورد زندهٔ سلامت روی ساعت، شامل تمرین، ضربان قلب و ویجت‌های Compose مخصوص صفحه گرد.
+  </li>
+  <li><b>:phone</b> – اپ گوشی اندرویدی<br/>
+    خواندن داده‌های خواب از Health Connect و نمایش شب‌ها به صورت کارت (تاریخ، ساعت شروع/پایان، مدت کل، مجموع Deep/Light/REM و لیست مراحل).
+    همچنین یک دکمهٔ <b>«Insert fake sleep»</b> برای تولید دادهٔ تست روی شبیه‌ساز دارد.
+  </li>
 </ul>
 
-<h3>معماری و ساختار پوشه‌ها</h3>
-
-<ul>
-  <li><b>data</b>: ریپازیتوری‌ها، مدل‌های داده و ارتباط مستقیم با <b>Health Services</b> و <b>Health Connect</b>.</li>
-  <li><b>domain</b>: <b>Use case</b>ها (مثل <code>GetHealthDataUseCase</code>) برای هماهنگی بین ریپازیتوری‌ها.</li>
-  <li><b>presentation</b>: <b>ViewModel</b>‌ها، مدل‌های <b>UI state</b> و کامپوننت‌های Compose رابط کاربری.</li>
-  <li><b>di</b>: ماژول‌های <b>Hilt</b> مثل <code>AppModule</code> برای تزریق وابستگی‌ها.</li>
-</ul>
-
-<p>
-این جداسازی باعث می‌شود تغییر در لایهٔ داده، کمترین تأثیر را روی UI داشته باشد و تست‌نویسی و نگه‌داری پروژه ساده‌تر شود.
-</p>
-
-<h3>راه‌اندازی پروژه</h3>
+<h3>راه‌اندازی سریع</h3>
 
 <ol>
   <li>
     <b>کلون کردن مخزن</b><br/>
-    <code>git clone https://github.com/ArminYousefi/WearOsHealthSample.git</code>
+    <code>git clone https://github.com/ArminYousefi/WearOsHealthSample.git</code><br/>
+    <code>cd WearOsHealthSample</code>
   </li>
   <li>
     <b>باز کردن در Android Studio</b><br/>
-    از منوی de>File &gt; Open</code> پوشهٔ پروژه را انتخاب کنید و منتظر بمانید تا <b>Gradle</b> به طور کامل سینک شود.
+    از منوی <code>File &gt; Open</code> پوشهٔ پروژه را انتخاب کنید و صبر کنید تا Gradle کامل سینک شود.
   </li>
   <li>
-    <b>اجرای اپ روی ساعت یا شبیه‌ساز Wear OS</b><br/>
-    کانفیگ اجرای Wear OS را انتخاب کنید، اپ را اجرا کنید و روی ساعت مجوزهای لازم
-    (تشخیص فعالیت، سنسورهای بدن / ضربان قلب، مجوزهای Health Connect) را تأیید کنید.
+    <b>اجرای ماژول ساعت (:app)</b><br/>
+    یک شبیه‌ساز یا دستگاه Wear OS بسازید، کانفیگ اجرا را روی ماژول ساعت بگذارید و اپ را اجرا کنید. روی ساعت مجوزهای لازم (تشخیص فعالیت و سنسورهای بدن) را تأیید کنید.
+  </li>
+  <li>
+    <b>اجرای ماژول گوشی (:phone) همراه با Health Connect</b><br/>
+    روی یک شبیه‌ساز/دستگاه دارای Google Play و Health Connect، ماژول گوشی را اجرا کنید.
+    در اولین اجرا، دکمهٔ «Grant Health Connect permission» را بزنید و در دیالوگ Health Connect مجوز خواب را تأیید کنید؛ سپس کارت‌های خواب سه روز اخیر را خواهید دید.
   </li>
 </ol>
+
+<h3>نکات توسعه</h3>
+
+<ul>
+  <li>برای تست روی شبیه‌ساز (که دادهٔ خواب واقعی ندارد) می‌توانید با دکمهٔ <b>Insert fake sleep</b> یک سشن خواب مصنوعی در Health Connect بنویسید و بلافاصله خروجی UI را ببینید.</li>
+  <li>روی گوشی واقعی، فقط کافی است یک اپ سلامت (مثلاً Samsung Health) را به Health Connect وصل کنید تا دادهٔ خواب واقعی در همان UI نمایش داده شود. </li>
+</ul>
+
 </div>
