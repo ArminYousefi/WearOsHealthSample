@@ -193,11 +193,11 @@ On a real phone with a sleep‑tracking app connected to Health Connect (e.g. Sa
 
 <h3>ماژول‌ها</h3>
 
-<ul>
-  <li><b>:app</b> – اپ Wear OS<br/>
+<ul dir="rtl" align="right">
+  <li dir="rtl" align="right"><b>:app</b> – اپ Wear OS<br/>
     داشبورد زندهٔ سلامت روی ساعت، شامل تمرین، ضربان قلب و ویجت‌های Compose مخصوص صفحه گرد.
   </li>
-  <li><b>:phone</b> – اپ گوشی اندرویدی<br/>
+  <li dir="rtl" align="right"><b>:phone</b> – اپ گوشی اندرویدی<br/>
     خواندن داده‌های خواب از Health Connect و نمایش شب‌ها به صورت کارت (تاریخ، ساعت شروع/پایان، مدت کل، مجموع Deep/Light/REM و لیست مراحل).
     همچنین یک دکمهٔ <b>«Insert fake sleep»</b> برای تولید دادهٔ تست روی شبیه‌ساز دارد.
   </li>
