@@ -1,22 +1,11 @@
 package com.google.wearhealthmonitor.presentation.ui
 
 import android.Manifest
-import android.annotation.SuppressLint
-import android.app.AlertDialog
-import android.content.Intent
 import android.content.pm.PackageManager
-import android.net.Uri
 import android.os.Build
-import android.provider.Settings
-import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
-import androidx.health.connect.client.HealthConnectClient
-import androidx.health.connect.client.PermissionController
-import androidx.health.connect.client.permission.HealthPermission
-import androidx.health.connect.client.records.HeartRateRecord
-import androidx.health.connect.client.records.SleepSessionRecord
 
 /**
  * مدیر متمرکز مجوزهای سلامت (Runtime + Health Connect) برای اپ.
@@ -39,90 +28,50 @@ class HealthPermissionManager(
     private val runtimePermissionLauncher =
         activity.registerForActivityResult(
             ActivityResultContracts.RequestMultiplePermissions()
-        ) { result ->
-            Log.d("PermDebug", "Result from runtime launcher: $result")
-            evaluatePermissionsAndStart()
+        ) { _ ->
+            evaluatePermissions()
         }
-
-    private val healthPermissions = setOf(
-        HealthPermission.getReadPermission(HeartRateRecord::class),
-        HealthPermission.getReadPermission(SleepSessionRecord::class)
-    )
-
-    private val healthPermissionLauncher =
-        activity.registerForActivityResult(
-            PermissionController.createRequestPermissionResultContract()
-        ) { granted: Set<String> ->
-            Log.d("PermDebug", "Result from HealthConnect launcher: $granted")
-            evaluatePermissionsAndStart()
-        }
-
-    private var hasRequestedHealthThisSession = false
-    private var hasShownHrSettingsDialog = false
 
     fun onCreate() {
         checkAndRequestRuntimePermissions()
     }
 
     fun onResume() {
-        evaluatePermissionsAndStart()
+        evaluatePermissions()
     }
 
     private fun checkAndRequestRuntimePermissions() {
         val needed = mutableListOf<String>()
 
-        val activityOk = isGranted(Manifest.permission.ACTIVITY_RECOGNITION)
-        val heartRateOk = isHeartRatePermissionGranted()
-
-        if (!activityOk) {
+        if (!isGranted(Manifest.permission.ACTIVITY_RECOGNITION)) {
             needed += Manifest.permission.ACTIVITY_RECOGNITION
         }
 
-        if (!heartRateOk && Build.VERSION.SDK_INT < 35) {
-            needed += Manifest.permission.BODY_SENSORS
+        val hrPermission =
+            if (Build.VERSION.SDK_INT >= 35) {
+                "android.permission.health.READ_HEART_RATE"
+            } else {
+                Manifest.permission.BODY_SENSORS
+            }
+        if (!isGranted(hrPermission)) {
+            needed += hrPermission
         }
 
         if (needed.isEmpty()) {
-            Log.d("PermDebug", "No runtime permission request needed")
-            evaluatePermissionsAndStart()
+            evaluatePermissions()
         } else {
-            Log.d("PermDebug", "Requesting runtime permissions: $needed")
             runtimePermissionLauncher.launch(needed.toTypedArray())
         }
     }
 
-    private fun evaluatePermissionsAndStart() {
+    private fun evaluatePermissions() {
         val activityOk = isGranted(Manifest.permission.ACTIVITY_RECOGNITION)
-        val heartRateOk = isHeartRatePermissionGranted()
+        val hrOk = isHeartRatePermissionGranted()
 
-        Log.d("PermDebug", "evaluatePermissions: ACTIVITY=$activityOk HR=$heartRateOk")
-
-        when {
-            activityOk && heartRateOk -> {
-                Log.d("PermDebug", "All required perms granted → onPermissionsReady()")
-                hasRequestedHealthThisSession = false
-                hasShownHrSettingsDialog = false
-                onPermissionsReady()
-            }
-
-            activityOk && Build.VERSION.SDK_INT >= 35 -> {
-                val status = HealthConnectClient.getSdkStatus(activity)
-                val hcAvailable = status == HealthConnectClient.SDK_AVAILABLE
-                Log.d("PermDebug", "HealthConnect SDK status = $status, available=$hcAvailable")
-
-                if (hcAvailable && !hasRequestedHealthThisSession) {
-                    hasRequestedHealthThisSession = true
-                    Log.d("PermDebug", "Launching HealthConnect HR+sleep permission sheet")
-                    healthPermissionLauncher.launch(healthPermissions)
-                } else if (!hasShownHrSettingsDialog) {
-                    hasShownHrSettingsDialog = true
-                    showHeartRateSettingsDialog()
-                }
-            }
-
-            else -> {
-                Log.d("PermDebug", "Critical perms missing → static mode")
-            }
+        if (activityOk && hrOk) {
+            onPermissionsReady()
+        } else {
+            // اگر دوست داشتی، همان دیالوگ Settings را اینجا صدا بزن
         }
     }
 
@@ -137,11 +86,9 @@ class HealthPermissionManager(
             } else {
                 Manifest.permission.BODY_SENSORS
             }
-
-        val granted = isGranted(hrPermission)
-        Log.d("PermDebug", "Heart-rate permission ($hrPermission) granted = $granted")
-        return granted
+        return isGranted(hrPermission)
     }
+<<<<<<< HEAD
 
     private fun showHeartRateSettingsDialog() {
         AlertDialog.Builder(activity)
@@ -171,4 +118,6 @@ class HealthPermissionManager(
         }
         activity.startActivity(intent)
     }
+=======
+>>>>>>> ec372bf (Fix Wear OS permissions and exercise start logic)
 }
